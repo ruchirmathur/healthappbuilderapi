@@ -9,12 +9,43 @@ on:
     branches:
       - main
   workflow_dispatch:
+    inputs:
+      COSMOS_DB_URL:
+        description: 'Cosmos DB URL'
+        required: true
+      COSMOS_DB_KEY:
+        description: 'Cosmos DB Key'
+        required: true
+      DATABASE_NAME:
+        description: 'Database Name'
+        required: true
+      CONTAINER_NAME:
+        description: 'Container Name'
+        required: true
+      AUTH0_DOMAIN:
+        description: 'Auth0 Domain'
+        required: true
+      AUTH0_M2M_CLIENT_ID:
+        description: 'Auth0 Client ID'
+        required: true
+      AUTH0_M2M_CLIENT_SECRET:
+        description: 'Auth0 Client Secret'
+        required: true
+      AUTH0_CONNECTION_ID:
+        description: 'Auth0 Connection ID'
+        required: true
+      GITHUB_PAT:
+        description: 'GitHub PAT'
+        required: true
+      GITHUB_OWNER:
+        description: 'GitHub Owner'
+        required: true
 
 jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
-      contents: read #This is required for actions/checkout
+      contents: read
 
     steps:
       - uses: actions/checkout@v4
@@ -31,8 +62,6 @@ jobs:
       
       - name: Install dependencies
         run: pip install -r requirements.txt
-        
-      # Optional: Add step to run tests here (PyTest, Django test suites, etc.)
 
       - name: Zip artifact for deployment
         run: zip release.zip ./* -r
@@ -52,8 +81,8 @@ jobs:
       name: 'Production'
       url: ${{ steps.deploy-to-webapp.outputs.webapp-url }}
     permissions:
-      id-token: write #This is required for requesting the JWT
-      contents: read #This is required for actions/checkout
+      id-token: write
+      contents: read
 
     steps:
       - name: Download artifact from build job
@@ -64,7 +93,6 @@ jobs:
       - name: Unzip artifact for deployment
         run: unzip release.zip
 
-      
       - name: Login to Azure
         uses: azure/login@v2
         with:
@@ -78,4 +106,16 @@ jobs:
         with:
           app-name: 'healthappbuilderapi'
           slot-name: 'Production'
-          
+          app-settings: |
+            [
+              "COSMOS_DB_URL=${{ github.event.inputs.COSMOS_DB_URL }}",
+              "COSMOS_DB_KEY=${{ github.event.inputs.COSMOS_DB_KEY }}",
+              "DATABASE_NAME=${{ github.event.inputs.DATABASE_NAME }}",
+              "CONTAINER_NAME=${{ github.event.inputs.CONTAINER_NAME }}",
+              "AUTH0_DOMAIN=${{ github.event.inputs.AUTH0_DOMAIN }}",
+              "AUTH0_M2M_CLIENT_ID=${{ github.event.inputs.AUTH0_M2M_CLIENT_ID }}",
+              "AUTH0_M2M_CLIENT_SECRET=${{ github.event.inputs.AUTH0_M2M_CLIENT_SECRET }}",
+              "AUTH0_CONNECTION_ID=${{ github.event.inputs.AUTH0_CONNECTION_ID }}",
+              "GITHUB_PAT=${{ github.event.inputs.GITHUB_PAT }}",
+              "GITHUB_OWNER=${{ github.event.inputs.GITHUB_OWNER }}"
+            ]

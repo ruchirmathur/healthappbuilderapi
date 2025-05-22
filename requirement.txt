@@ -1,0 +1,6 @@
+Flask==3.1.1
+requests==2.31.0
+azure-cosmos==4.6.0
+auth0-python==4.9.0
+flask-cors==5.0.0
+gunicorn==21.2.0

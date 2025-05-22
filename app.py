@@ -4,31 +4,24 @@ from azure.cosmos import CosmosClient, PartitionKey, exceptions
 from auth0.management import Auth0
 import requests
 import os
-import logging
 
 # Initialize Flask app and enable CORS
 app = Flask(__name__)
 CORS(app)
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
 # ================= Environment Variables =================
-COSMOS_DB_URL = ""
-COSMOS_DB_KEY = "" 
-DATABASE_NAME = ""
-CONTAINER_NAME = ""
+COSMOS_DB_URL = os.getenv("COSMOS_DB_URL", "")
+COSMOS_DB_KEY = os.getenv("COSMOS_DB_KEY", "") 
+DATABASE_NAME = os.getenv("DATABASE_NAME", "")
+CONTAINER_NAME = os.getenv("CONTAINER_NAME", "")
 
-AUTH0_DOMAIN =""
-AUTH0_M2M_CLIENT_ID = ""
-AUTH0_M2M_CLIENT_SECRET = ""
-AUTH0_CONNECTION_ID = ""
+AUTH0_DOMAIN = os.getenv("AUTH0_DOMAIN", "")
+AUTH0_M2M_CLIENT_ID = os.getenv("AUTH0_M2M_CLIENT_ID", "")
+AUTH0_M2M_CLIENT_SECRET = os.getenv("AUTH0_M2M_CLIENT_SECRET", "")
+AUTH0_CONNECTION_ID = os.getenv("AUTH0_CONNECTION_ID", "")
 
-GITHUB_PAT = ""  # GitHub Personal Access Token with workflow scope
-GITHUB_OWNER = ""  # Repository owner
-GITHUB_REPO = ""  # Repository name
-GITHUB_WORKFLOW_ID = ""  # Numeric workflow ID
+GITHUB_PAT = os.getenv("GITHUB_PAT", "")  # GitHub Personal Access Token with workflow scope
+GITHUB_OWNER = os.getenv("GITHUB_OWNER", "")  # Repository owner
 
 # ================= Cosmos DB Initialization =================
 client = CosmosClient(COSMOS_DB_URL, COSMOS_DB_KEY)
@@ -55,8 +48,8 @@ def get_auth0_client():
         )
         token_response.raise_for_status()
         return Auth0(AUTH0_DOMAIN, token_response.json()["access_token"])
-    except Exception as e:
-        logger.error(f"Auth0 client initialization failed: {str(e)}")
+    except Exception:
+        # Do not log sensitive details
         raise
 
 # ================= Fixed Create App Endpoint =================
@@ -68,8 +61,6 @@ def create_auth0_app():
         app_name = data.get('app')
         org_name = data.get('org_name')
         email = data.get('email')
-
-        logger.info(f"Creating app: {app_name}, org: {org_name}, email: {email}")
 
         if not all([app_name, org_name, email]):
             return jsonify({"error": "Missing required parameters"}), 400
@@ -83,24 +74,21 @@ def create_auth0_app():
             "callbacks": ["http://localhost:3000/callback"],
             "organization_usage": "require"
         })
-        logger.info(f"Created Auth0 client: {auth0_app['client_id']}")
 
         # 2. Create Organization (without connections)
         org = auth0.organizations.create_organization({
             "name": org_name.lower().replace(" ", "-"),
             "display_name": org_name
         })
-        logger.info(f"Created organization: {org['id']}")
 
         # 3. Add Connection to Organization
-        connection = auth0.organizations.create_organization_connection(
+        auth0.organizations.create_organization_connection(
             org["id"],
             {
                 "connection_id": AUTH0_CONNECTION_ID,
                 "assign_membership_on_login": True
             }
         )
-        logger.info(f"Added connection {AUTH0_CONNECTION_ID} to organization")
 
         # 4. Send Invitation
         invitation = auth0.organizations.create_organization_invitation(
@@ -112,7 +100,6 @@ def create_auth0_app():
                 "send_invitation_email": True
             }
         )
-        logger.info(f"Sent invitation to {email}")
 
         return jsonify({
             "client_id": auth0_app["client_id"],
@@ -120,9 +107,9 @@ def create_auth0_app():
             "invitation_url": invitation["ticket_url"]
         }), 201
 
-    except Exception as e:
-        logger.error(f"Error in /createApp: {str(e)}", exc_info=True)
-        return jsonify({"error": str(e)}), 500
+    except Exception:
+        # Do not log sensitive details
+        return jsonify({"error": "Internal server error"}), 500
 
 
 @app.route('/write', methods=['POST'])
@@ -139,8 +126,8 @@ def write_or_update_data():
         # Upsert the item (create or replace)
         container.upsert_item(body=data)
         return jsonify({"message": "Data written or updated successfully"}), 201
-    except exceptions.CosmosHttpResponseError as e:
-        return jsonify({"error": str(e)}), 500
+    except exceptions.CosmosHttpResponseError:
+        return jsonify({"error": "Database error"}), 500
 
 
 @app.route('/retrieve/<id>', methods=['GET'])
@@ -154,8 +141,8 @@ def retrieve_data(id):
         return jsonify(item), 200
     except exceptions.CosmosResourceNotFoundError:
         return jsonify({"error": "Item not found"}), 404
-    except exceptions.CosmosHttpResponseError as e:
-        return jsonify({"error": str(e)}), 500
+    except exceptions.CosmosHttpResponseError:
+        return jsonify({"error": "Database error"}), 500
 
 
 @app.route('/retrieve-all', methods=['GET'])
@@ -171,8 +158,8 @@ def retrieve_all():
             enable_cross_partition_query=True
         ))
         return jsonify(items), 200
-    except exceptions.CosmosHttpResponseError as e:
-        return jsonify({"error": str(e)}), 500
+    except exceptions.CosmosHttpResponseError:
+        return jsonify({"error": "Database error"}), 500
 
 
 @app.route('/delete/<id>', methods=['DELETE'])
@@ -186,9 +173,8 @@ def delete_data(id):
         return jsonify({"message": "Data deleted successfully"}), 200
     except exceptions.CosmosResourceNotFoundError:
         return jsonify({"error": "Item not found"}), 404
-    except exceptions.CosmosHttpResponseError as e:
-        return jsonify({"error": str(e)}), 500
-
+    except exceptions.CosmosHttpResponseError:
+        return jsonify({"error": "Database error"}), 500
 
 @app.route('/edit/<id>', methods=['PUT'])
 @cross_origin()
@@ -208,8 +194,8 @@ def edit_data(id):
         return jsonify({"message": "Data updated successfully"}), 200
     except exceptions.CosmosResourceNotFoundError:
         return jsonify({"error": "Item not found"}), 404
-    except exceptions.CosmosHttpResponseError as e:
-        return jsonify({"error": str(e)}), 500
+    except exceptions.CosmosHttpResponseError:
+        return jsonify({"error": "Database error"}), 500
 
 @app.route('/trigger-deploy', methods=['POST'])
 @cross_origin()
@@ -227,9 +213,7 @@ def trigger_deployment():
         if not workflow_id:
             return jsonify({"error": "Missing required parameter: workflow_id"}), 400
         if not GITHUB_PAT or not GITHUB_OWNER:
-            return jsonify({"error": "Server misconfiguration: missing GITHUB_PAT or GITHUB_OWNER"}), 500
-
-        logger.info(f"Triggering workflow '{workflow_id}' on repo '{repo}' with inputs: {inputs}")
+            return jsonify({"error": "Server misconfiguration"}), 500
 
         url = f"https://api.github.com/repos/{GITHUB_OWNER}/{repo}/actions/workflows/{workflow_id}/dispatches"
         headers = {
@@ -256,18 +240,13 @@ def trigger_deployment():
             "error": "Failed to trigger workflow",
             "repo": repo,
             "workflow_id": workflow_id,
-            "details": response.text
+            "details": "Workflow dispatch failed"
         }), response.status_code
 
-    except requests.exceptions.RequestException as e:
-        logger.error(f"Request error: {str(e)}")
+    except requests.exceptions.RequestException:
         return jsonify({"error": "Connection to GitHub failed"}), 500
-    except Exception as e:
-        logger.error(f"Unexpected error: {str(e)}", exc_info=True)
-        return jsonify({"error": str(e)}), 500
+    except Exception:
+        return jsonify({"error": "Internal server error"}), 500
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
-
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(host='0.0.0.0', port=5000, debug=False)

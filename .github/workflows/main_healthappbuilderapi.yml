@@ -34,12 +34,6 @@ on:
       AUTH0_CONNECTION_ID:
         description: 'Auth0 Connection ID'
         required: true
-      GITHUB_PAT:
-        description: 'GitHub PAT'
-        required: true
-      GITHUB_OWNER:
-        description: 'GitHub Owner'
-        required: true
 
 jobs:
   build:
@@ -116,6 +110,6 @@ jobs:
               "AUTH0_M2M_CLIENT_ID=${{ github.event.inputs.AUTH0_M2M_CLIENT_ID }}",
               "AUTH0_M2M_CLIENT_SECRET=${{ github.event.inputs.AUTH0_M2M_CLIENT_SECRET }}",
               "AUTH0_CONNECTION_ID=${{ github.event.inputs.AUTH0_CONNECTION_ID }}",
-              "GITHUB_PAT=${{ github.event.inputs.GITHUB_PAT }}",
-              "GITHUB_OWNER=${{ github.event.inputs.GITHUB_OWNER }}"
+              "GITHUB_PAT=${{ secrets.APP_PAT }}",
+              "GITHUB_OWNER=${{ secrets.APP_OWNER }}"
             ]

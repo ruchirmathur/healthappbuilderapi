@@ -18,18 +18,6 @@ on:
       CONTAINER_NAME:
         description: 'Container Name'
         required: true
-      AUTH0_DOMAIN:
-        description: 'Auth0 Domain'
-        required: true
-      AUTH0_M2M_CLIENT_ID:
-        description: 'Auth0 Client ID'
-        required: true
-      AUTH0_M2M_CLIENT_SECRET:
-        description: 'Auth0 Client Secret'
-        required: true
-      AUTH0_CONNECTION_ID:
-        description: 'Auth0 Connection ID'
-        required: true
 
 jobs:
   build:
@@ -107,10 +95,10 @@ jobs:
               { "name": "COSMOS_DB_KEY", "value": "${{ github.event.inputs.COSMOS_DB_KEY }}" },
               { "name": "DATABASE_NAME", "value": "${{ github.event.inputs.DATABASE_NAME }}" },
               { "name": "CONTAINER_NAME", "value": "${{ github.event.inputs.CONTAINER_NAME }}" },
-              { "name": "AUTH0_DOMAIN", "value": "${{ github.event.inputs.AUTH0_DOMAIN }}" },
-              { "name": "AUTH0_M2M_CLIENT_ID", "value": "${{ github.event.inputs.AUTH0_M2M_CLIENT_ID }}" },
-              { "name": "AUTH0_M2M_CLIENT_SECRET", "value": "${{ github.event.inputs.AUTH0_M2M_CLIENT_SECRET }}" },
-              { "name": "AUTH0_CONNECTION_ID", "value": "${{ github.event.inputs.AUTH0_CONNECTION_ID }}" },
+              { "name": "AUTH0_DOMAIN", "value": "${{ secrets.AUTH0_DOMAIN }}" },
+              { "name": "AUTH0_M2M_CLIENT_ID", "value": "${{ secrets.AUTH0_M2M_CLIENT_ID }}" },
+              { "name": "AUTH0_M2M_CLIENT_SECRET", "value": "${{ secrets.AUTH0_M2M_CLIENT_SECRET }}" },
+              { "name": "AUTH0_CONNECTION_ID", "value": "${{ secrets.AUTH0_CONNECTION_ID }}" },
               { "name": "GITHUB_PAT", "value": "${{ secrets.APP_PAT }}" },
               { "name": "GITHUB_OWNER", "value": "${{ secrets.APP_OWNER }}" },
               { "name": "WEBSITES_PORT", "value": "5000" }

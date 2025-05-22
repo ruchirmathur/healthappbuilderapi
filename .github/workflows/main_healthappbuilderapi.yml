@@ -1,7 +1,3 @@
-# Docs for the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
-# More GitHub Actions for Azure: https://github.com/Azure/actions
-# More info on Python, GitHub Actions, and Azure App Service: https://aka.ms/python-webapps-actions
-
 name: Build and deploy Python app to Azure Web App - healthappbuilderapi
 
 on:
@@ -100,16 +96,22 @@ jobs:
         with:
           app-name: 'healthappbuilderapi'
           slot-name: 'Production'
-          app-settings: |
+
+      - name: 'Configure App Settings'
+        uses: azure/appservice-settings@v1
+        with:
+          app-name: 'healthappbuilderapi'
+          app-settings-json: |
             [
-              "COSMOS_DB_URL=${{ github.event.inputs.COSMOS_DB_URL }}",
-              "COSMOS_DB_KEY=${{ github.event.inputs.COSMOS_DB_KEY }}",
-              "DATABASE_NAME=${{ github.event.inputs.DATABASE_NAME }}",
-              "CONTAINER_NAME=${{ github.event.inputs.CONTAINER_NAME }}",
-              "AUTH0_DOMAIN=${{ github.event.inputs.AUTH0_DOMAIN }}",
-              "AUTH0_M2M_CLIENT_ID=${{ github.event.inputs.AUTH0_M2M_CLIENT_ID }}",
-              "AUTH0_M2M_CLIENT_SECRET=${{ github.event.inputs.AUTH0_M2M_CLIENT_SECRET }}",
-              "AUTH0_CONNECTION_ID=${{ github.event.inputs.AUTH0_CONNECTION_ID }}",
-              "GITHUB_PAT=${{ secrets.APP_PAT }}",
-              "GITHUB_OWNER=${{ secrets.APP_OWNER }}"
+              { "name": "COSMOS_DB_URL", "value": "${{ github.event.inputs.COSMOS_DB_URL }}" },
+              { "name": "COSMOS_DB_KEY", "value": "${{ github.event.inputs.COSMOS_DB_KEY }}" },
+              { "name": "DATABASE_NAME", "value": "${{ github.event.inputs.DATABASE_NAME }}" },
+              { "name": "CONTAINER_NAME", "value": "${{ github.event.inputs.CONTAINER_NAME }}" },
+              { "name": "AUTH0_DOMAIN", "value": "${{ github.event.inputs.AUTH0_DOMAIN }}" },
+              { "name": "AUTH0_M2M_CLIENT_ID", "value": "${{ github.event.inputs.AUTH0_M2M_CLIENT_ID }}" },
+              { "name": "AUTH0_M2M_CLIENT_SECRET", "value": "${{ github.event.inputs.AUTH0_M2M_CLIENT_SECRET }}" },
+              { "name": "AUTH0_CONNECTION_ID", "value": "${{ github.event.inputs.AUTH0_CONNECTION_ID }}" },
+              { "name": "GITHUB_PAT", "value": "${{ secrets.APP_PAT }}" },
+              { "name": "GITHUB_OWNER", "value": "${{ secrets.APP_OWNER }}" },
+              { "name": "WEBSITES_PORT", "value": "5000" }
             ]

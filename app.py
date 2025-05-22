@@ -10,18 +10,20 @@ app = Flask(__name__)
 CORS(app)
 
 # ================= Environment Variables =================
-COSMOS_DB_URL = os.getenv("COSMOS_DB_URL", "")
-COSMOS_DB_KEY = os.getenv("COSMOS_DB_KEY", "") 
-DATABASE_NAME = os.getenv("DATABASE_NAME", "")
-CONTAINER_NAME = os.getenv("CONTAINER_NAME", "")
+# Use dummy values for local development/testing only
+COSMOS_DB_URL = os.getenv("COSMOS_DB_URL", "https://dummy.documents.azure.com:443/")
+COSMOS_DB_KEY = os.getenv("COSMOS_DB_KEY", "dummy-key") 
+DATABASE_NAME = os.getenv("DATABASE_NAME", "testdb")
+CONTAINER_NAME = os.getenv("CONTAINER_NAME", "testcontainer")
 
-AUTH0_DOMAIN = os.getenv("AUTH0_DOMAIN", "")
-AUTH0_M2M_CLIENT_ID = os.getenv("AUTH0_M2M_CLIENT_ID", "")
-AUTH0_M2M_CLIENT_SECRET = os.getenv("AUTH0_M2M_CLIENT_SECRET", "")
-AUTH0_CONNECTION_ID = os.getenv("AUTH0_CONNECTION_ID", "")
+AUTH0_DOMAIN = os.getenv("AUTH0_DOMAIN", "dev-abc123.auth0.com")
+AUTH0_M2M_CLIENT_ID = os.getenv("AUTH0_M2M_CLIENT_ID", "dummy_client_id")
+AUTH0_M2M_CLIENT_SECRET = os.getenv("AUTH0_M2M_CLIENT_SECRET", "dummy_client_secret")
+AUTH0_CONNECTION_ID = os.getenv("AUTH0_CONNECTION_ID", "con_123456")
 
-GITHUB_PAT = os.getenv("GITHUB_PAT", "")  # GitHub Personal Access Token with workflow scope
-GITHUB_OWNER = os.getenv("GITHUB_OWNER", "")  # Repository owner
+GITHUB_PAT = os.getenv("GITHUB_PAT", "ghp_dummyPAT")  # Fake token pattern
+GITHUB_OWNER = os.getenv("GITHUB_OWNER", "dummy-owner")
+
 
 # ================= Cosmos DB Initialization =================
 client = CosmosClient(COSMOS_DB_URL, COSMOS_DB_KEY)

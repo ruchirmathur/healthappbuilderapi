@@ -4,9 +4,11 @@ from azure.cosmos import CosmosClient, PartitionKey, exceptions
 from auth0.management import Auth0
 import requests
 import os
+import logging
 
 app = Flask(__name__)
 CORS(app)
+
 
 # Environment variables (dummy defaults for local dev)
 COSMOS_DB_URL = os.getenv("COSMOS_DB_URL", "https://dummy.documents.azure.com:443/")
@@ -49,6 +51,13 @@ def get_auth0_client():
     except Exception:
         raise
 
+def ensure_list(param):
+    if param is None:
+        return []
+    if isinstance(param, list):
+        return param
+    return [param]
+
 @app.route('/createApp', methods=['POST'])
 @cross_origin()
 def create_auth0_app():
@@ -57,8 +66,16 @@ def create_auth0_app():
         app_name = data.get('app')
         org_name = data.get('org_name')
         email = data.get('email')
-        print("AUTH0_CONNECTION_ID"+AUTH0_CONNECTION_ID)
+        # Ensure these are always lists
+        initiate_login_uri = data.get('initiate_login_uri')
+        callback_urls = ensure_list(data.get('callback_urls', "http://localhost:3000/callback"))
+        logout_urls = ensure_list(data.get('logout_urls', "http://localhost:3000/logout"))
+        logging.info(
+            f'Received /createApp request with app="{app_name}", org_name="{org_name}", email="{email}", '
+            f'callback_urls="{callback_urls}", logout_urls="{logout_urls}"'
+        )
         if not all([app_name, org_name, email]):
+            logging.warning('Missing required parameters in /createApp')
             return jsonify({"error": "Missing required parameters"}), 400
 
         auth0 = get_auth0_client()
@@ -66,14 +83,18 @@ def create_auth0_app():
         auth0_app = auth0.clients.create({
             "name": app_name,
             "app_type": "spa",
-            "callbacks": ["http://localhost:3000/callback"],
+            "callbacks": callback_urls,
+            "allowed_logout_urls": logout_urls,
+            "initiate_login_uri": initiate_login_uri,
             "organization_usage": "require"
         })
+        logging.info(f'Created Auth0 app: {auth0_app.get("client_id")}')
 
         org = auth0.organizations.create_organization({
             "name": org_name.lower().replace(" ", "-"),
             "display_name": org_name
         })
+        logging.info(f'Created Auth0 organization: {org.get("id")}')
 
         auth0.organizations.create_organization_connection(
             org["id"],
@@ -82,6 +103,7 @@ def create_auth0_app():
                 "assign_membership_on_login": True
             }
         )
+        logging.info(f'Connected organization {org.get("id")} to connection {AUTH0_CONNECTION_ID}')
 
         invitation = auth0.organizations.create_organization_invitation(
             org["id"],
@@ -92,15 +114,17 @@ def create_auth0_app():
                 "send_invitation_email": True
             }
         )
+        logging.info(f'Sent invitation to {email} for org {org.get("id")}')
 
         return jsonify({
             "client_id": auth0_app["client_id"],
-            "org_id": org["id"],
-            "invitation_url": invitation["ticket_url"]
+            "org_id": org["id"]
         }), 201
 
-    except Exception:
+    except Exception as e:
+        logging.error(f'Error in /createApp: {e}', exc_info=True)
         return jsonify({"error": "Internal server error"}), 500
+
 
 @app.route('/write', methods=['POST'])
 @cross_origin()

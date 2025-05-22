@@ -69,6 +69,7 @@ def create_auth0_app():
         app_name = data.get('app')
         org_name = data.get('org_name')
         email = data.get('email')
+        print(AUTH0_CONNECTION_ID)
 
         logger.info(f"Received createApp request for app='{app_name}', org='{org_name}', email='{email}'.")
 

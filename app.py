@@ -182,6 +182,7 @@ def trigger_deployment():
         workflow_id = data.get('workflow_id')
         inputs = data.get('inputs', {})
         print(GITHUB_OWNER)
+        print(GITHUB_PAT)
 
         if not repo:
             return jsonify({"error": "Missing required parameter: repo"}), 400

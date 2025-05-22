@@ -188,7 +188,7 @@ def trigger_deployment():
             return jsonify({"error": "Missing required parameter: workflow_id"}), 400
         if not GITHUB_PAT or not GITHUB_OWNER:
             return jsonify({"error": "Server misconfiguration"}), 500
-
+        print(GITHUB_OWNER)
         url = f"https://api.github.com/repos/{GITHUB_OWNER}/{repo}/actions/workflows/{workflow_id}/dispatches"
         headers = {
             "Authorization": f"Bearer {GITHUB_PAT}",

@@ -8,16 +8,16 @@ on:
     inputs:
       COSMOS_DB_URL:
         description: 'Cosmos DB URL'
-        required: true
+        required: false
       COSMOS_DB_KEY:
         description: 'Cosmos DB Key'
-        required: true
+        required: false
       DATABASE_NAME:
         description: 'Database Name'
-        required: true
+        required: false
       CONTAINER_NAME:
         description: 'Container Name'
-        required: true
+        required: false
 
 jobs:
   build:
@@ -91,10 +91,10 @@ jobs:
           app-name: 'healthappbuilderapi'
           app-settings-json: |
             [
-              { "name": "COSMOS_DB_URL", "value": "${{ github.event.inputs.COSMOS_DB_URL }}" },
-              { "name": "COSMOS_DB_KEY", "value": "${{ github.event.inputs.COSMOS_DB_KEY }}" },
-              { "name": "DATABASE_NAME", "value": "${{ github.event.inputs.DATABASE_NAME }}" },
-              { "name": "CONTAINER_NAME", "value": "${{ github.event.inputs.CONTAINER_NAME }}" },
+              { "name": "COSMOS_DB_URL", "value": "${{ secrets.COSMOS_DB_URL }}" },
+              { "name": "COSMOS_DB_KEY", "value": "${{ secrets.COSMOS_DB_KEY }}" },
+              { "name": "DATABASE_NAME", "value": "${{ secrets.DATABASE_NAME }}" },
+              { "name": "CONTAINER_NAME", "value": "${{ secrets.CONTAINER_NAME }}" },
               { "name": "AUTH0_DOMAIN", "value": "${{ secrets.AUTH0_DOMAIN }}" },
               { "name": "AUTH0_M2M_CLIENT_ID", "value": "${{ secrets.AUTH0_M2M_CLIENT_ID }}" },
               { "name": "AUTH0_M2M_CLIENT_SECRET", "value": "${{ secrets.AUTH0_M2M_CLIENT_SECRET }}" },

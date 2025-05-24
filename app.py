@@ -9,7 +9,6 @@ import logging
 app = Flask(__name__)
 CORS(app)
 
-
 # Environment variables (dummy defaults for local dev)
 COSMOS_DB_URL = os.getenv("COSMOS_DB_URL", "https://dummy.documents.azure.com:443/")
 COSMOS_DB_KEY = os.getenv("COSMOS_DB_KEY", "dummy-key") 
@@ -66,36 +65,45 @@ def create_auth0_app():
         app_name = data.get('app')
         org_name = data.get('org_name')
         email = data.get('email')
-        # Ensure these are always lists
-        initiate_login_uri = data.get('initiate_login_uri')
+        
+        # Set critical defaults
+        initiate_login_uri = data.get('initiate_login_uri', "http://localhost:3000")
         callback_urls = ensure_list(data.get('callback_urls', "http://localhost:3000/callback"))
         logout_urls = ensure_list(data.get('logout_urls', "http://localhost:3000/logout"))
-        logging.info(
-            f'Received /createApp request with app="{app_name}", org_name="{org_name}", email="{email}", '
-            f'callback_urls="{callback_urls}", logout_urls="{logout_urls}"'
-        )
-        if not all([app_name, org_name, email]):
-            logging.warning('Missing required parameters in /createApp')
-            return jsonify({"error": "Missing required parameters"}), 400
+
+        logging.info(f'Creating app "{app_name}" for org "{org_name}"')
+
+        # Validate all required parameters
+        if not all([app_name, org_name, email, initiate_login_uri]):
+            missing = [k for k, v in {'app': app_name, 'org_name': org_name,
+                                    'email': email, 'initiate_login_uri': initiate_login_uri}.items() if not v]
+            logging.error(f'Missing required parameters: {missing}')
+            return jsonify({"error": f"Missing required fields: {', '.join(missing)}"}), 400
 
         auth0 = get_auth0_client()
 
+        # 1. Create Auth0 client with OIDC compliance and org enforcement
         auth0_app = auth0.clients.create({
             "name": app_name,
             "app_type": "spa",
             "callbacks": callback_urls,
             "allowed_logout_urls": logout_urls,
             "initiate_login_uri": initiate_login_uri,
-            "organization_usage": "require"
+            "organization_usage": "require",
+            "organization_require_behavior": "pre_login_prompt",
+            "oidc_conformant": True,  # Direct top-level property
+            "token_endpoint_auth_method": "none"  # Direct top-level property
         })
-        logging.info(f'Created Auth0 app: {auth0_app.get("client_id")}')
+        logging.info(f'Created OIDC-compliant client {auth0_app["client_id"]}')
 
+        # 2. Create Organization
         org = auth0.organizations.create_organization({
             "name": org_name.lower().replace(" ", "-"),
             "display_name": org_name
         })
-        logging.info(f'Created Auth0 organization: {org.get("id")}')
+        logging.info(f'Created organization {org["id"]}')
 
+        # 3. Enable connection for organization
         auth0.organizations.create_organization_connection(
             org["id"],
             {
@@ -103,8 +111,9 @@ def create_auth0_app():
                 "assign_membership_on_login": True
             }
         )
-        logging.info(f'Connected organization {org.get("id")} to connection {AUTH0_CONNECTION_ID}')
+        logging.info(f'Connected {AUTH0_CONNECTION_ID} to organization {org["id"]}')
 
+        # 4. Send invitation
         invitation = auth0.organizations.create_organization_invitation(
             org["id"],
             {
@@ -114,16 +123,23 @@ def create_auth0_app():
                 "send_invitation_email": True
             }
         )
-        logging.info(f'Sent invitation to {email} for org {org.get("id")}')
+        logging.info(f'Sent invitation to {email}')
 
         return jsonify({
             "client_id": auth0_app["client_id"],
-            "org_id": org["id"]
+            "org_id": org["id"],
+            "initiate_login_uri": initiate_login_uri,
+            "oidc_conformant": True  # Explicit confirmation in response
         }), 201
 
     except Exception as e:
-        logging.error(f'Error in /createApp: {e}', exc_info=True)
-        return jsonify({"error": "Internal server error"}), 500
+        logging.error(f'Critical error in /createApp: {str(e)}', exc_info=True)
+        return jsonify({
+            "error": "Application creation failed",
+            "details": str(e)
+        }), 500
+
+
 
 
 @app.route('/write', methods=['POST'])
@@ -200,21 +216,31 @@ def edit_data(id):
 @cross_origin()
 def trigger_deployment():
     try:
+        # Log incoming request
+        logging.info('Received /trigger-deploy request')
         data = request.get_json()
+        logging.debug(f'Request payload: {data}')
 
         repo = data.get('repo')
         workflow_id = data.get('workflow_id')
         inputs = data.get('inputs', {})
-        print(GITHUB_OWNER)
-        print(GITHUB_PAT)
+        
+        # Log environment variables (mask sensitive PAT)
+        logging.info(f'GITHUB_OWNER: {GITHUB_OWNER}')
+        logging.info(f'GITHUB_PAT: {"***" if GITHUB_PAT else "Not set"}')
 
+        # Validate parameters
         if not repo:
+            logging.warning('Missing required parameter: repo')
             return jsonify({"error": "Missing required parameter: repo"}), 400
         if not workflow_id:
+            logging.warning('Missing required parameter: workflow_id')
             return jsonify({"error": "Missing required parameter: workflow_id"}), 400
         if not GITHUB_PAT or not GITHUB_OWNER:
+            logging.error('Server misconfiguration detected - missing GITHUB_PAT or GITHUB_OWNER')
             return jsonify({"error": "Server misconfiguration"}), 500
 
+        # Prepare GitHub API request
         url = f"https://api.github.com/repos/{GITHUB_OWNER}/{repo}/actions/workflows/{workflow_id}/dispatches"
         headers = {
             "Authorization": f"Bearer {GITHUB_PAT}",
@@ -226,9 +252,15 @@ def trigger_deployment():
             "inputs": inputs
         }
 
+        logging.info(f'Dispatching workflow to GitHub: {url}')
+        logging.debug(f'Request payload: {payload}')
+
+        # Execute GitHub API call
         response = requests.post(url, json=payload, headers=headers, timeout=30)
+        logging.info(f'GitHub API response status: {response.status_code}')
 
         if response.status_code == 204:
+            logging.info('Successfully triggered workflow')
             return jsonify({
                 "status": "Workflow triggered successfully",
                 "repo": repo,
@@ -236,17 +268,21 @@ def trigger_deployment():
                 "inputs": inputs
             }), 200
 
+        logging.error(f'Workflow trigger failed. GitHub response: {response.text}')
         return jsonify({
             "error": "Failed to trigger workflow",
             "repo": repo,
             "workflow_id": workflow_id,
-            "details": "Workflow dispatch failed"
+            "details": response.json().get('message', 'Unknown error')
         }), response.status_code
 
-    except requests.exceptions.RequestException:
+    except requests.exceptions.RequestException as e:
+        logging.error(f'Network error occurred: {str(e)}', exc_info=True)
         return jsonify({"error": "Connection to GitHub failed"}), 500
-    except Exception:
+    except Exception as e:
+        logging.error(f'Unexpected error: {str(e)}', exc_info=True)
         return jsonify({"error": "Internal server error"}), 500
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=False)

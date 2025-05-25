@@ -192,21 +192,29 @@ def write_or_update_data():
         app.logger.error(f"Cosmos DB error: {e}", exc_info=True)
         return jsonify({"error": "Database error"}), 500
 
-@app.route('/retrieve/<id>', methods=['GET'])
+@app.route('/retrieve/<tenant_id>', methods=['GET'])
 @cross_origin()
-def retrieve_data(id):
-    app.logger.info(f"GET /retrieve/{id} called")
+def retrieve_data(tenant_id):
     try:
         container = get_cosmos_container()
-        item = container.read_item(item=id, partition_key=id)
-        app.logger.info(f"Item retrieved for id: {id}")
-        return jsonify(item), 200
-    except exceptions.CosmosResourceNotFoundError:
-        app.logger.warning(f"Item not found: {id}")
-        return jsonify({"error": "Item not found"}), 404
+        query = "SELECT * FROM c WHERE c.TenantId = @tenant_id"
+        parameters = [{"name": "@tenant_id", "value": tenant_id}]
+
+        items = list(container.query_items(
+            query=query,
+            parameters=parameters,
+            enable_cross_partition_query=True
+        ))
+
+        if not items:
+            return jsonify({"error": "Item not found"}), 404
+
+        return jsonify(items[0]), 200
+
     except exceptions.CosmosHttpResponseError as e:
-        app.logger.error(f"Cosmos DB error: {e}", exc_info=True)
-        return jsonify({"error": "Database error"}), 500
+        return jsonify({"error": "Database error", "details": str(e)}), 500
+    except Exception as e:
+        return jsonify({"error": "Unexpected error", "details": str(e)}), 500
 
 @app.route('/retrieve-all', methods=['GET'])
 @cross_origin()

@@ -178,7 +178,6 @@ def create_auth0_app():
             "details": str(e)
         }), 500
 
-
 @app.route('/write', methods=['POST'])
 @cross_origin()
 def write_or_update_data():

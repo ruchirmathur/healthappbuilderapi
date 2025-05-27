@@ -159,11 +159,16 @@ def create_auth0_app():
         )
         app.logger.info(f'Sent invitation to {email}')
 
+        # --- Add Okta domain and callback URLs to response ---
+        okta_domain = AUTH0_DOMAIN  # <-- Replace with your actual Okta domain
+
         return jsonify({
             "client_id": auth0_app["client_id"],
             "org_id": org["id"],
             "initiate_login_uri": initiate_login_uri,
-            "oidc_conformant": True
+            "oidc_conformant": True,
+            "okta_domain": okta_domain,
+            "callback_urls": callback_urls
         }), 201
 
     except Exception as e:
@@ -172,6 +177,7 @@ def create_auth0_app():
             "error": "Application creation failed",
             "details": str(e)
         }), 500
+
 
 @app.route('/write', methods=['POST'])
 @cross_origin()
